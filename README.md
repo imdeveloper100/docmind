@@ -1,1 +1,0 @@
-A Document Reader project

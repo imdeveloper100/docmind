@@ -5,24 +5,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'DocMind AI — Chat with your documents',
   description: 'Upload documents, ask questions, and understand your files with DocMind AI.',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
+  generator: 'Awais Rehman',
 }
 
 export const viewport: Viewport = {
