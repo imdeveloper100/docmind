@@ -19,7 +19,8 @@ async function bootstrap() {
     origin: config.get<string>('FRONTEND_ORIGIN', 'http://localhost:3000'),
   });
 
-  const port = config.get<number>('PORT', 3001);
+  // Vercel injects PORT; local default stays 3001.
+  const port = Number(process.env.PORT ?? config.get<string>('PORT') ?? 3001);
   await app.listen(port);
 }
 bootstrap();
