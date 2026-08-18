@@ -38,9 +38,7 @@ function describeEmbedderError(error: unknown): string {
 
 @Injectable()
 export class ChatService {
-  private readonly embedderUrl: string;
-  private readonly model: string;
-  private readonly mistral: OpenAI;
+  private mistral: OpenAI | null = null;
 
   constructor(
     @InjectModel(ChatMessage.name)
@@ -48,16 +46,27 @@ export class ChatService {
     private readonly documentsService: DocumentsService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {
-    this.embedderUrl = this.configService.getOrThrow<string>('EMBEDDER_URL');
-    this.model = this.configService.get<string>(
+  ) {}
+
+  private embedderUrl() {
+    return this.configService.getOrThrow<string>('EMBEDDER_URL');
+  }
+
+  private chatModel() {
+    return this.configService.get<string>(
       'MISTRAL_CHAT_MODEL',
       'mistral-small-latest',
     );
-    this.mistral = new OpenAI({
-      apiKey: this.configService.getOrThrow<string>('MISTRAL_API_KEY'),
-      baseURL: MISTRAL_BASE_URL,
-    });
+  }
+
+  private mistralClient() {
+    if (!this.mistral) {
+      this.mistral = new OpenAI({
+        apiKey: this.configService.getOrThrow<string>('MISTRAL_API_KEY'),
+        baseURL: MISTRAL_BASE_URL,
+      });
+    }
+    return this.mistral;
   }
 
   async ask(dto: CreateChatDto) {
@@ -72,7 +81,7 @@ export class ChatService {
     try {
       const { data } = await firstValueFrom(
         this.httpService.post<EmbedQueryResponse>(
-          `${this.embedderUrl}/embed-query`,
+          `${this.embedderUrl()}/embed-query`,
           { query: dto.question },
           { timeout: 60000 },
         ),
@@ -102,8 +111,8 @@ export class ChatService {
 
     let answer: string;
     try {
-      const completion = await this.mistral.chat.completions.create({
-        model: this.model,
+      const completion = await this.mistralClient().chat.completions.create({
+        model: this.chatModel(),
         messages: [{ role: 'user', content: prompt }],
       });
       answer =

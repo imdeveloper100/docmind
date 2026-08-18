@@ -1,6 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import * as mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
@@ -18,6 +16,7 @@ export function getSupportedExtension(
 }
 
 async function extractPdf(buffer: Buffer): Promise<string> {
+  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   try {
     const result = await parser.getText();
@@ -28,6 +27,8 @@ async function extractPdf(buffer: Buffer): Promise<string> {
 }
 
 async function extractDocx(buffer: Buffer): Promise<string> {
+  const mammothModule = await import('mammoth');
+  const mammoth = mammothModule.default ?? mammothModule;
   const { value } = await mammoth.extractRawText({ buffer });
   return value;
 }

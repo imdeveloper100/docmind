@@ -38,14 +38,14 @@ function describeEmbedderError(error: unknown): string {
 
 @Injectable()
 export class DocumentsService {
-  private readonly embedderUrl: string;
-
   constructor(
     @InjectModel(Document.name) private readonly documentModel: Model<Document>,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {
-    this.embedderUrl = this.configService.getOrThrow<string>('EMBEDDER_URL');
+  ) {}
+
+  private embedderUrl() {
+    return this.configService.getOrThrow<string>('EMBEDDER_URL');
   }
 
   async create(input: CreateDocumentInput) {
@@ -55,7 +55,7 @@ export class DocumentsService {
     try {
       const { data } = await firstValueFrom(
         this.httpService.post<ChunkAndEmbedResponse>(
-          `${this.embedderUrl}/chunk-and-embed`,
+          `${this.embedderUrl()}/chunk-and-embed`,
           { text: input.content, documentId: documentId.toHexString() },
           { timeout: 120000 },
         ),
