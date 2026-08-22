@@ -17,6 +17,11 @@ export class ChatController {
     return this.chatService.ask(dto);
   }
 
+  @Get('recent')
+  recent() {
+    return this.chatService.recent();
+  }
+
   @Get(':documentId/history')
   history(@Param() params: DocumentIdParam) {
     return this.chatService.history(params.documentId);

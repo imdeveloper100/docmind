@@ -6,22 +6,22 @@ import {
   FileText,
   Search,
   Upload,
-  MessageSquare,
-  MoreHorizontal,
-  Sparkles,
   Clock3,
   FileUp,
   ChevronRight,
   Menu,
-  X,
   Plus,
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Trash2,
 } from "lucide-react";
+import { DeleteDocumentModal } from "@/components/delete-document-modal";
+import { Sidebar } from "@/components/sidebar";
 import {
   ACCEPTED_EXTENSIONS,
   ApiError,
+  deleteDocument,
   DocumentSummary,
   formatBytes,
   formatRelativeTime,
@@ -37,102 +37,13 @@ function iconClassFor(fileType: string) {
   return "bg-amber-50 text-amber-500";
 }
 
-function Sidebar({
-  open,
-  onClose,
-  documentCount,
+function DocumentCard({
+  doc,
+  onDelete,
 }: {
-  open: boolean;
-  onClose: () => void;
-  documentCount: number;
+  doc: DocumentSummary;
+  onDelete: (doc: DocumentSummary) => void;
 }) {
-  const used = Math.min(documentCount, 5);
-  return (
-    <>
-      {open && (
-        <button
-          aria-label="Close menu"
-          onClick={onClose}
-          className="fixed inset-0 z-30 bg-slate-950/20 lg:hidden"
-        />
-      )}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col border-r border-slate-200 bg-white transition-transform lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="flex h-16 items-center justify-between border-b border-slate-100 px-5">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900"
-          >
-            <span className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-white">
-              <FileText className="size-[18px]" />
-            </span>
-            DocMind<span className="text-indigo-600">AI</span>
-          </Link>
-          <button
-            className="lg:hidden"
-            onClick={onClose}
-            aria-label="Close navigation"
-          >
-            <X className="size-5 text-slate-500" />
-          </button>
-        </div>
-        <nav className="flex flex-col gap-1 p-4 text-sm font-medium">
-          <Link
-            className="flex items-center gap-3 rounded-lg bg-indigo-50 px-3 py-2.5 text-indigo-700"
-            href="/"
-          >
-            <FileText className="size-[18px]" />
-            My Documents
-          </Link>
-          <Link
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50"
-            href="/"
-          >
-            <MessageSquare className="size-[18px]" />
-            Recent Chats
-          </Link>
-        </nav>
-        <div className="mt-auto border-t border-slate-100 p-4">
-          <div className="rounded-xl bg-slate-50 p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <Sparkles className="size-4 text-indigo-600" />
-              Free plan
-            </div>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              {documentCount} of 5 documents used
-            </p>
-            <div className="mt-2 h-1.5 rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-indigo-600 transition-all"
-                style={{ width: `${(used / 5) * 100}%` }}
-              />
-            </div>
-            <button className="mt-3 w-full rounded-md bg-indigo-600 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
-              Upgrade plan
-            </button>
-          </div>
-          <div className="mt-4 flex items-center gap-3 px-1">
-            <div className="grid size-8 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-              JD
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-slate-800">
-                Jordan Davis
-              </p>
-              <p className="truncate text-[11px] text-slate-500">
-                jordan@example.com
-              </p>
-            </div>
-            <MoreHorizontal className="size-4 text-slate-400" />
-          </div>
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function DocumentCard({ doc }: { doc: DocumentSummary }) {
   return (
     <Link
       href={`/documents/${doc.id}`}
@@ -146,11 +57,16 @@ function DocumentCard({ doc }: { doc: DocumentSummary }) {
             <FileText className="size-5" />
           </div>
           <button
-            aria-label={`More options for ${doc.title}`}
-            onClick={(e) => e.preventDefault()}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+            type="button"
+            aria-label={`Delete ${doc.title}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(doc);
+            }}
+            className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
           >
-            <MoreHorizontal className="size-5" />
+            <Trash2 className="size-5" />
           </button>
         </div>
         <h3 className="mt-4 truncate text-sm font-semibold text-slate-900">
@@ -188,6 +104,11 @@ export default function Page() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DocumentSummary | null>(
+    null,
+  );
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
@@ -248,6 +169,23 @@ export default function Page() {
 
   function openFilePicker() {
     fileInputRef.current?.click();
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteDocument(pendingDelete.id);
+      setPendingDelete(null);
+      await refresh();
+    } catch (error) {
+      setDeleteError(
+        error instanceof ApiError ? error.message : "Could not delete the file.",
+      );
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const filtered = useMemo(
@@ -380,6 +318,12 @@ export default function Page() {
                   {uploadError}
                 </div>
               )}
+              {deleteError && (
+                <div className="mt-3 flex items-start gap-2 text-xs font-medium text-rose-700">
+                  <AlertCircle className="mt-px size-4 shrink-0" />
+                  {deleteError}
+                </div>
+              )}
             </div>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -441,7 +385,13 @@ export default function Page() {
                   <CardSkeleton />
                 </>
               ) : (
-                filtered.map((doc) => <DocumentCard key={doc.id} doc={doc} />)
+                filtered.map((doc) => (
+                  <DocumentCard
+                    key={doc.id}
+                    doc={doc}
+                    onDelete={setPendingDelete}
+                  />
+                ))
               )}
               {!loading && (
                 <button
@@ -487,6 +437,19 @@ export default function Page() {
           </div>
         </main>
       </div>
+      <DeleteDocumentModal
+        open={pendingDelete !== null}
+        filename={pendingDelete?.title ?? ""}
+        deleting={deleting}
+        error={deleteError}
+        onCancel={() => {
+          if (!deleting) {
+            setPendingDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

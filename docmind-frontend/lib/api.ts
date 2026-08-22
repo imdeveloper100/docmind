@@ -89,6 +89,25 @@ export function uploadDocument(file: File) {
   return request<DocumentDetail>("/documents/upload", { method: "POST", body });
 }
 
+export function deleteDocument(id: string) {
+  return request<{ id: string; deleted: boolean }>(`/documents/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export type RecentChat = {
+  documentId: string;
+  documentTitle: string;
+  fileType: string;
+  lastQuestion: string;
+  lastMessageAt: string;
+  messageCount: number;
+};
+
+export function listRecentChats(signal?: AbortSignal) {
+  return request<RecentChat[]>("/chat/recent", { signal });
+}
+
 export function askQuestion(documentId: string, question: string) {
   return request<ChatAnswer>("/chat", {
     method: "POST",
@@ -136,6 +155,27 @@ export function formatRelativeTime(iso: string) {
   if (days < 30) return `Added ${days} days ago`;
 
   return `Added ${new Date(iso).toLocaleDateString()}`;
+}
+
+export function formatAgo(iso: string) {
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return "Recently";
+
+  const seconds = Math.round((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return "Just now";
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60)
+    return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.round(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days} days ago`;
+
+  return new Date(iso).toLocaleDateString();
 }
 
 export function formatTime(iso: string) {

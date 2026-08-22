@@ -11,6 +11,7 @@ import { Model, Types } from 'mongoose';
 import OpenAI from 'openai';
 import { firstValueFrom } from 'rxjs';
 import { DocumentsService } from '../documents/documents.service';
+import { Document } from '../documents/schemas/document.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { ChatMessage } from './schemas/chat-message.schema';
 import { cosineSimilarity } from './utils/cosine-similarity';
@@ -43,6 +44,8 @@ export class ChatService {
   constructor(
     @InjectModel(ChatMessage.name)
     private readonly chatMessageModel: Model<ChatMessage>,
+    @InjectModel(Document.name)
+    private readonly documentModel: Model<Document>,
     private readonly documentsService: DocumentsService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -150,5 +153,48 @@ export class ChatService {
       answer: msg.answer,
       createdAt: msg.createdAt,
     }));
+  }
+
+  async recent() {
+    return this.chatMessageModel.aggregate<{
+      documentId: string;
+      documentTitle: string;
+      fileType: string;
+      lastQuestion: string;
+      lastMessageAt: Date;
+      messageCount: number;
+    }>([
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$documentId',
+          lastQuestion: { $first: '$question' },
+          lastMessageAt: { $first: '$createdAt' },
+          messageCount: { $sum: 1 },
+        },
+      },
+      { $sort: { lastMessageAt: -1 } },
+      { $limit: 50 },
+      {
+        $lookup: {
+          from: this.documentModel.collection.name,
+          localField: '_id',
+          foreignField: '_id',
+          as: 'doc',
+        },
+      },
+      { $unwind: '$doc' },
+      {
+        $project: {
+          _id: 0,
+          documentId: { $toString: '$_id' },
+          documentTitle: '$doc.title',
+          fileType: { $ifNull: ['$doc.fileType', 'TXT'] },
+          lastQuestion: 1,
+          lastMessageAt: 1,
+          messageCount: 1,
+        },
+      },
+    ]);
   }
 }

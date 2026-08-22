@@ -28,6 +28,12 @@ export class Document {
   @Prop({ type: [ChunkSchema], default: [] })
   chunks: Chunk[];
 
+  @Prop()
+  cloudinaryPublicId?: string;
+
+  @Prop()
+  cloudinaryUrl?: string;
+
   createdAt?: Date;
 }
 

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -53,11 +54,13 @@ export class DocumentsController {
 
     const content = await extractText(file.buffer, extension);
 
-    return this.documentsService.create({
+    return this.documentsService.createFromUpload({
       title: title?.trim() || file.originalname,
       content,
       fileType: extension.toUpperCase(),
       sizeBytes: file.size,
+      buffer: file.buffer,
+      filename: file.originalname,
     });
   }
 
@@ -69,5 +72,10 @@ export class DocumentsController {
   @Get(':id')
   findOne(@Param() params: DocumentIdParam) {
     return this.documentsService.findOne(params.id);
+  }
+
+  @Delete(':id')
+  remove(@Param() params: DocumentIdParam) {
+    return this.documentsService.remove(params.id);
   }
 }
